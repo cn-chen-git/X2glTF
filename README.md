@@ -313,7 +313,7 @@ main.py
 ## 目录结构
 
 ```text
-gltf-model/
+X2glTF/
 ├── main.py                     # 入口：GUI / CLI / Serve 分发
 ├── requirements.txt
 ├── afk_x2gltf/                 # 核心包
