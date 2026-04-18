@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>X2glTF — DirectX .x 批量转 glTF/GLB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            bg: { base: '#F8FAFC', panel: '#FFFFFF', elev: '#F1F5F9' },
+            line: '#E2E8F0',
+            ink: { DEFAULT: '#0F172A', mute: '#475569', dim: '#94A3B8' },
+            brand: {
+              50:  '#EFF6FF',
+              100: '#DBEAFE',
+              200: '#BFDBFE',
+              500: '#3B82F6',
+              600: '#2563EB',
+              700: '#1D4ED8',
+            },
+            accent: { DEFAULT: '#2563EB', hover: '#1D4ED8', ring: 'rgba(37,99,235,0.25)' },
+            danger: '#DC2626',
+            warn: '#D97706',
+            success: '#16A34A',
+          },
+          boxShadow: {
+            card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)',
+            'brand-glow': '0 0 0 4px rgba(37,99,235,0.18)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="min-h-screen bg-bg-base font-sans text-ink antialiased selection:bg-brand-100">
+  <div class="pointer-events-none fixed inset-0 -z-10 opacity-[0.35]"
+       style="background-image:
+         radial-gradient(1200px 500px at 90% -10%, #DBEAFE 0%, transparent 60%),
+         radial-gradient(900px 400px at -10% 110%, #E0E7FF 0%, transparent 60%);"></div>
+
+  <header class="sticky top-0 z-30 border-b border-line/80 bg-white/80 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div class="flex items-center gap-3">
+        <div class="grid h-9 w-9 place-items-center rounded-lg bg-brand-50 ring-1 ring-brand-200">
+          <svg class="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 3 7l9 5 9-5-9-5Z"/>
+            <path d="m3 17 9 5 9-5"/>
+            <path d="m3 12 9 5 9-5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-mono text-lg font-semibold tracking-tight text-ink">X2glTF</div>
+          <div class="text-xs text-ink-mute">DirectX <code class="font-mono">.x</code> → glTF / GLB 批量转换</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="assimpBadge" class="inline-flex items-center gap-2 rounded-full bg-bg-elev px-3 py-1.5 text-xs font-medium text-ink-mute ring-1 ring-line">
+          <span class="h-1.5 w-1.5 rounded-full bg-ink-dim"></span>
+          <span>检测 Assimp…</span>
+        </span>
+        <button id="btnInstall" type="button"
+                class="group inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-medium text-ink ring-1 ring-line transition-colors hover:bg-bg-elev hover:ring-brand-500/60">
+          <svg class="h-4 w-4 text-ink-mute group-hover:text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>安装 / 更新 Assimp</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1fr,420px]">
+    <section class="space-y-6">
+      <div class="rounded-xl border border-line bg-bg-panel p-5 shadow-card">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="font-mono text-sm font-semibold uppercase tracking-wider text-ink-mute">路径</h2>
+          <span id="scanBadge" class="font-mono text-xs text-ink-dim">—</span>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label for="inputDir" class="mb-1 block text-xs font-medium text-ink-mute">输入目录</label>
+            <div class="flex gap-2">
+              <input id="inputDir" type="text"
+                     class="flex-1 rounded-lg bg-white px-3 py-2 font-mono text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500"
+                     placeholder="选择存放 .x 的目录" />
+              <button type="button" data-picker="input"
+                      class="cursor-pointer rounded-lg bg-white px-3 py-2 text-sm font-medium text-ink ring-1 ring-line transition-colors hover:bg-bg-elev hover:ring-brand-500/60">
+                浏览…
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="outputDir" class="mb-1 block text-xs font-medium text-ink-mute">输出目录</label>
+            <div class="flex gap-2">
+              <input id="outputDir" type="text"
+                     class="flex-1 rounded-lg bg-white px-3 py-2 font-mono text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500"
+                     placeholder="转换结果输出目录" />
+              <button type="button" data-picker="output"
+                      class="cursor-pointer rounded-lg bg-white px-3 py-2 text-sm font-medium text-ink ring-1 ring-line transition-colors hover:bg-bg-elev hover:ring-brand-500/60">
+                浏览…
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-line bg-bg-panel p-5 shadow-card">
+        <h2 class="mb-4 font-mono text-sm font-semibold uppercase tracking-wider text-ink-mute">输出选项</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-mute" for="outputFormat">输出格式</label>
+            <select id="outputFormat" class="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="glb">GLB（单文件二进制）</option>
+              <option value="gltf">glTF（文本 + bin + 贴图）</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-mute" for="axisUp">Up 轴</label>
+            <select id="axisUp" class="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="y_up">Y-up（glTF 标准）</option>
+              <option value="z_up">Z-up</option>
+              <option value="keep">保持原样</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-mute" for="globalScale">全局缩放</label>
+            <input id="globalScale" type="number" step="0.01" value="1.0"
+                   class="w-full rounded-lg bg-white px-3 py-2 font-mono text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-mute" for="workers">并发数</label>
+            <input id="workers" type="number" min="1" max="16" value="4"
+                   class="w-full rounded-lg bg-white px-3 py-2 font-mono text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+          <div class="col-span-2">
+            <label class="mb-1 block text-xs font-medium text-ink-mute" for="keepAnim">仅保留指定名称动画（可选）</label>
+            <input id="keepAnim" type="text" placeholder="留空保留全部动画"
+                   class="w-full rounded-lg bg-white px-3 py-2 font-mono text-sm text-ink ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-line bg-bg-panel p-5 shadow-card">
+        <h2 class="mb-4 font-mono text-sm font-semibold uppercase tracking-wider text-ink-mute">几何 / 骨骼</h2>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-ink">
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="recursive" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>递归子目录</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="overwrite" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>覆盖已存在</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="triangulate" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>三角化</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="joinVertices" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>合并顶点</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="limitBoneWeights" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>限制骨骼权重 (4/顶点)</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="flipHandedness" type="checkbox" class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>强制再翻转手性（通常无需勾选）</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="genNormals" type="checkbox" class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>生成法线</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="genSmoothNormals" type="checkbox" class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>平滑法线</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="calcTangent" type="checkbox" class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>计算切线空间</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="improveCache" type="checkbox" class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>优化缓存局部性</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="embedTextures" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>GLB 嵌入贴图</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input id="copyTextures" type="checkbox" checked class="h-4 w-4 cursor-pointer accent-brand-600" />
+            <span>glTF 拷贝同目录贴图</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <aside class="space-y-6 lg:sticky lg:top-24 lg:self-start">
+      <div class="rounded-xl border border-line bg-bg-panel p-5 shadow-card">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="font-mono text-sm font-semibold uppercase tracking-wider text-ink-mute">进度</h2>
+          <span id="stats" class="font-mono text-xs text-ink-dim">就绪</span>
+        </div>
+        <div class="mb-4 h-2 overflow-hidden rounded-full bg-bg-elev ring-1 ring-line">
+          <div id="progressBar" class="h-full w-0 rounded-full bg-gradient-to-r from-brand-500 to-brand-700 transition-[width] duration-300"></div>
+        </div>
+        <button id="btnRun" type="button"
+                class="group w-full cursor-pointer rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-brand-glow transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-bg-panel disabled:cursor-not-allowed disabled:bg-bg-elev disabled:text-ink-dim disabled:shadow-none">
+          <span id="btnRunLabel" class="inline-flex items-center justify-center gap-2">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            开始批量转换
+          </span>
+        </button>
+        <p class="mt-3 text-center text-[11px] text-ink-dim" id="hint">选择目录后点击开始</p>
+      </div>
+
+      <div class="rounded-xl border border-line bg-bg-panel p-5 shadow-card">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="font-mono text-sm font-semibold uppercase tracking-wider text-ink-mute">日志</h2>
+          <button id="btnClearLog" type="button" class="cursor-pointer text-xs text-ink-dim hover:text-ink transition-colors">清空</button>
+        </div>
+        <div id="log" class="h-72 overflow-auto rounded-lg bg-bg-elev p-3 font-mono text-xs leading-relaxed text-ink-mute ring-1 ring-line"></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="toast" class="pointer-events-none fixed bottom-6 right-6 z-50 translate-y-4 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-ink opacity-0 shadow-card ring-1 ring-line transition-all duration-200"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
